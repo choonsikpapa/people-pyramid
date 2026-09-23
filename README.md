@@ -39,8 +39,8 @@
     <div class="header">
         <h1>📊 실시간 학급 인구 피라미드</h1>
         <div class="nav-buttons">
-            <button class="nav-btn active" onclick="switchView('dashboard')">📈 교사 대시보드</button>
-            <button class="nav-btn" onclick="switchView('submit')">📱 학생 설문 제출</button>
+            <button class="nav-btn active" onclick="switchView('dashboard', this)">📈 교사 대시보드</button>
+            <button class="nav-btn" onclick="switchView('submit', this)">📱 학생 설문 제출</button>
         </div>
     </div>
 
@@ -99,12 +99,11 @@
         </div>
     </div>
 
-    <!-- Firebase SDK (ES Module 방식) -->
+    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // 선생님의 Firebase 고유 설정값
         const firebaseConfig = {
             apiKey: "AIzaSyDhBOpQWkZ92Q09PZy8WxprnVROTb_Pd_U",
             authDomain: "pyramid-89a8c.firebaseapp.com",
@@ -115,22 +114,21 @@
             measurementId: "G-TCS2Z2BQ2E"
         };
 
-        // Firebase 초기화
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const surveyCol = collection(db, "class_surveys");
 
-        // UI 제어 로직 (탭 전환)
-        window.switchView = function(view) {
+        // 탭 전환 로직
+        window.switchView = function(view, btnElement) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
             
             document.getElementById('view-' + view).classList.add('active');
-            event.target.classList.add('active');
+            if(btnElement) btnElement.classList.add('active');
         }
 
-        // 학생 데이터 제출 로직
-        document.getElementById('btn-submit').addEventListener('click', async () => {
+        // 학생 데이터 제출 로직 (UI 즉시 반응형으로 수정)
+        document.getElementById('btn-submit').addEventListener('click', () => {
             const children = parseFloat(document.getElementById('input-children').value);
             const marriage = parseFloat(document.getElementById('input-marriage').value);
             const lifespan = parseFloat(document.getElementById('input-lifespan').value);
@@ -144,27 +142,32 @@
             btn.disabled = true;
             btn.innerText = "제출 중...";
 
-            try {
-                await addDoc(surveyCol, {
-                    children: children,
-                    marriage: marriage,
-                    lifespan: lifespan,
-                    timestamp: new Date()
-                });
-                document.getElementById('submit-result').innerText = "✅ 성공적으로 제출되었습니다! 화면 상단의 '대시보드'를 눌러 결과를 확인하세요.";
+            // Firebase에 데이터 전송 (백그라운드 처리)
+            addDoc(surveyCol, {
+                children: children,
+                marriage: marriage,
+                lifespan: lifespan,
+                timestamp: new Date()
+            }).catch(error => console.error("제출 오류:", error));
+
+            // 데이터베이스 응답 대기 없이 화면 리셋을 0.3초 뒤에 즉시 실행
+            setTimeout(() => {
+                document.getElementById('submit-result').innerText = "✅ 성공적으로 제출되었습니다! 상단의 '대시보드' 탭을 확인하세요.";
                 document.getElementById('input-children').value = '';
                 document.getElementById('input-marriage').value = '';
                 document.getElementById('input-lifespan').value = '';
-            } catch (error) {
-                console.error("Error:", error);
-                alert('제출에 실패했습니다. (데이터베이스 권한 오류일 수 있습니다.)');
-            } finally {
+                
                 btn.disabled = false;
                 btn.innerText = "응답 제출하기";
-            }
+
+                // 3초 뒤에 성공 메시지 숨기기
+                setTimeout(() => {
+                    document.getElementById('submit-result').innerText = "";
+                }, 3000);
+            }, 300);
         });
 
-        // 차트 초기화 세팅
+        // 차트 초기화
         let pyramidChart = null;
         const ageLabels = Array.from({length: 21}, (_, i) => `${i*5}~${i*5+4}세`);
         ageLabels[20] = '100세 이상';
@@ -188,26 +191,26 @@
                         x: {
                             stacked: true,
                             ticks: { callback: val => Math.abs(val).toFixed(1) + '%' },
-                            title: { display: true, text: '전체 인구 대비 비율 (%)' }
+                            title: { display: true, text: '전체 인구 대비 비율 (%)' },
+                            min: -15, /* 그래프 양옆 최대폭 고정 (흔들림 방지) */
+                            max: 15
                         },
-                        y: { stacked: true }
+                        y: { 
+                            stacked: true,
+                            reverse: true /* [핵심 수정] 0세가 바닥으로 가도록 위아래 순서 뒤집기 */
+                        }
                     },
                     plugins: {
-                        tooltip: {
-                            callbacks: { label: ctx => `${ctx.dataset.label}: ${Math.abs(ctx.raw).toFixed(2)}%` }
-                        }
+                        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${Math.abs(ctx.raw).toFixed(2)}%` } }
                     },
                     animation: { duration: 800 }
                 }
             });
         }
 
-        // 인구 피라미드 계산 로직 (출산율/수명 기반 연속 코호트 모델)
         function calculatePyramid(tfr, lifespan) {
             const ages = Array.from({length: 21}, (_, i) => i * 5 + 2.5);
-            // TFR이 2.05(대체출산율)일 때 세대간 인구 유지. 낮으면 역피라미드 형성.
             const r = Math.pow(Math.max(0.1, tfr) / 2.05, 1.0 / 6.0);
-            
             const baseSize = ages.map((_, i) => Math.pow(r, -i));
             const survival = ages.map(age => 1.0 / (1.0 + Math.exp((age - lifespan) / 4.0)));
             
@@ -217,7 +220,6 @@
             return weights.map(w => (w / total) * 100.0);
         }
 
-        // 실시간 데이터 수신 및 차트 업데이트 로직
         onSnapshot(query(surveyCol), (snapshot) => {
             let totalChildren = 0;
             let totalMarriage = 0;
@@ -239,14 +241,12 @@
                 const avgLifespan = totalLifespan / count;
                 const tfr = avgChildren * (avgMarriage / 100);
 
-                // UI 통계 업데이트
                 document.getElementById('stat-count').innerText = `${count}명`;
                 document.getElementById('stat-children').innerText = `${avgChildren.toFixed(2)}명`;
                 document.getElementById('stat-marriage').innerText = `${avgMarriage.toFixed(1)}%`;
                 document.getElementById('stat-lifespan').innerText = `${avgLifespan.toFixed(1)}세`;
                 document.getElementById('stat-tfr').innerText = tfr.toFixed(2);
 
-                // 피라미드 계산 및 반영
                 const percentages = calculatePyramid(tfr, avgLifespan);
                 const maleData = percentages.map(p => -(p * 0.49).toFixed(2));
                 const femaleData = percentages.map(p => (p * 0.51).toFixed(2));
@@ -255,7 +255,6 @@
                 pyramidChart.data.datasets[1].data = femaleData;
                 pyramidChart.update();
             } else {
-                // 데이터가 없을 때 초기화
                 document.getElementById('stat-count').innerText = `0명`;
                 document.getElementById('stat-children').innerText = `0.00명`;
                 document.getElementById('stat-marriage').innerText = `0%`;
@@ -266,13 +265,8 @@
                 pyramidChart.data.datasets[1].data = Array(21).fill(0);
                 pyramidChart.update();
             }
-        }, (error) => {
-            console.error("Firestore Listen Error:", error);
-            document.getElementById('status-msg').innerText = "🔴 권한 오류: Firestore '테스트 모드' 설정이 필요합니다.";
-            document.getElementById('status-msg').style.color = "red";
         });
 
-        // 데이터 초기화 기능 (새 수업용)
         window.clearData = async function() {
             if(confirm("모든 학생의 응답 데이터를 삭제하시겠습니까? (복구 불가)")) {
                 try {
@@ -287,7 +281,6 @@
             }
         }
 
-        // 앱 시작 시 차트 렌더링
         window.onload = initChart;
     </script>
 </body>

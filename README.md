@@ -121,7 +121,7 @@
         /* Stats Grid (PC) */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 12px;
             margin-bottom: 20px;
         }
@@ -168,7 +168,7 @@
         .manual-inputs {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 10px;
             justify-content: center;
         }
 
@@ -176,8 +176,8 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
-            flex: 1 1 120px;
-            max-width: 160px;
+            flex: 1 1 110px;
+            max-width: 150px;
         }
 
         .manual-inputs label {
@@ -284,13 +284,19 @@
             margin-top: 10px;
         }
 
-        /* Form Controls */
+        /* Form Controls (Student View) */
         .form-group {
             margin-bottom: 20px;
             background: #f8fafc;
             padding: 16px;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
+            transition: opacity 0.2s ease;
+        }
+
+        .form-group.disabled-group {
+            opacity: 0.4;
+            pointer-events: none;
         }
 
         .form-group label {
@@ -298,11 +304,11 @@
             font-size: 15px;
             font-weight: 700;
             color: #1e293b;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             line-height: 1.4;
         }
 
-        .form-group input {
+        .form-group input[type="number"] {
             width: 100%;
             padding: 12px 14px;
             border: 2px solid #cbd5e1;
@@ -314,8 +320,44 @@
             transition: border-color 0.2s;
         }
 
-        .form-group input:focus {
+        .form-group input[type="number"]:focus {
             border-color: var(--primary);
+        }
+
+        /* Choice Cards for Marriage Option */
+        .choice-container {
+            display: flex;
+            gap: 12px;
+        }
+
+        .choice-btn {
+            flex: 1;
+            padding: 14px;
+            border: 2px solid #cbd5e1;
+            border-radius: 10px;
+            background: white;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 700;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .choice-btn input[type="radio"] {
+            display: none;
+        }
+
+        .choice-btn.selected-yes {
+            border-color: #059669;
+            background: #ecfdf5;
+            color: #047857;
+        }
+
+        .choice-btn.selected-no {
+            border-color: #ef4444;
+            background: #fef2f2;
+            color: #b91c1c;
         }
 
         .submit-btn {
@@ -351,7 +393,7 @@
             word-break: keep-all;
         }
 
-        /* Mobile Only Responsive Styles (@media) */
+        /* Mobile Responsive (@media) */
         @media (max-width: 768px) {
             .header {
                 padding: 15px 10px;
@@ -393,7 +435,7 @@
             }
 
             .manual-inputs > div {
-                flex: 1 1 100%;
+                flex: 1 1 45%;
                 max-width: 100%;
             }
 
@@ -423,7 +465,7 @@
                 font-size: 14px;
             }
 
-            .form-group input {
+            .form-group input[type="number"] {
                 padding: 10px 12px;
                 font-size: 16px;
             }
@@ -458,12 +500,16 @@
                     <div class="stat-value" id="stat-count">0명</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">평균 희망 자녀</div>
-                    <div class="stat-value" id="stat-children">0.00명</div>
+                    <div class="stat-label">학급 결혼율</div>
+                    <div class="stat-value" id="stat-marriage">0.0%</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-label">평균 결혼 의향률</div>
-                    <div class="stat-value" id="stat-marriage">0.0%</div>
+                    <div class="stat-label">평균 결혼 연령</div>
+                    <div class="stat-value" id="stat-marriage-age">0.0세</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">평균 희망 자녀</div>
+                    <div class="stat-value" id="stat-children">0.00명</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-label">평균 기대 수명</div>
@@ -480,12 +526,16 @@
                 <h3>🛠️ 수동 시뮬레이션 설정 (선생님 직접 입력)</h3>
                 <div class="manual-inputs">
                     <div>
-                        <label>희망 자녀 수(명)</label>
-                        <input type="number" id="manual-children" step="0.1" value="1.5">
+                        <label>결혼 비율(%)</label>
+                        <input type="number" id="manual-marriage" step="5" value="80">
                     </div>
                     <div>
-                        <label>결혼 의향률(%)</label>
-                        <input type="number" id="manual-marriage" step="1" value="80">
+                        <label>결혼 연령(세)</label>
+                        <input type="number" id="manual-marriage-age" step="1" value="31">
+                    </div>
+                    <div>
+                        <label>희망 자녀 수(명)</label>
+                        <input type="number" id="manual-children" step="0.1" value="1.8">
                     </div>
                     <div>
                         <label>기대 수명(세)</label>
@@ -527,18 +577,38 @@
         <!-- 2. 학생 제출 뷰 -->
         <div id="view-submit" class="view-section">
             <h2 style="text-align: center; margin-bottom: 20px; font-size:20px;">나의 미래 계획 입력하기</h2>
+            
+            <!-- Q1. 결혼 여부 -->
             <div class="form-group">
-                <label>1. 나는 앞으로 자녀를 몇 명 낳고 싶나요? (명)</label>
+                <label>1. 나는 성인이 된 후 결혼을 하겠습니까?</label>
+                <div class="choice-container">
+                    <label class="choice-btn" id="btn-marry-yes" onclick="selectMarriageOption(true)">
+                        <input type="radio" name="willMarry" value="yes"> ⭕ 결혼 한다
+                    </label>
+                    <label class="choice-btn" id="btn-marry-no" onclick="selectMarriageOption(false)">
+                        <input type="radio" name="willMarry" value="no"> ❌ 결혼 안 한다
+                    </label>
+                </div>
+            </div>
+
+            <!-- Q2. 예상 결혼 연령 -->
+            <div class="form-group" id="group-marriage-age">
+                <label>2. 몇 살쯤에 결혼하고 싶나요? (세)</label>
+                <input type="number" id="input-marriage-age" min="18" max="70" placeholder="예: 28, 32, 35">
+            </div>
+
+            <!-- Q3. 희망 자녀 수 -->
+            <div class="form-group" id="group-children">
+                <label>3. 자녀를 몇 명 낳고 싶나요? (명)</label>
                 <input type="number" id="input-children" min="0" max="10" step="1" placeholder="예: 0, 1, 2...">
             </div>
+
+            <!-- Q4. 기대 수명 -->
             <div class="form-group">
-                <label>2. 나는 성인이 된 후 결혼할 의향이 있나요? (%)</label>
-                <input type="number" id="input-marriage" min="0" max="100" step="5" placeholder="결혼 안함(0) ~ 무조건 함(100)">
-            </div>
-            <div class="form-group">
-                <label>3. 나는 몇 살까지 살고 싶나요? (세)</label>
+                <label>4. 나는 몇 살까지 살고 싶나요? (세)</label>
                 <input type="number" id="input-lifespan" min="50" max="120" step="1" placeholder="예: 85, 90, 100">
             </div>
+
             <button class="submit-btn" id="btn-submit">응답 제출하기</button>
             <div id="submit-result"></div>
         </div>
@@ -565,7 +635,8 @@
 
         // 앱 상태 변수
         let isManualMode = false;
-        let liveData = { children: 0, marriage: 0, lifespan: 0, count: 0 };
+        let selectedWillMarry = null; // true or false
+        let liveData = { marriageRate: 0, avgMarriageAge: 0, avgChildren: 0, avgLifespan: 0, count: 0 };
         let pyramidChart = null;
         let currentOverlay = 'none';
 
@@ -593,14 +664,53 @@
             if(btnElement) btnElement.classList.add('active');
         }
 
-        // 학생 제출 함수
+        // 결혼 여부 선택 토글
+        window.selectMarriageOption = function(willMarry) {
+            selectedWillMarry = willMarry;
+            const btnYes = document.getElementById('btn-marry-yes');
+            const btnNo = document.getElementById('btn-marry-no');
+            const groupAge = document.getElementById('group-marriage-age');
+            const groupChildren = document.getElementById('group-children');
+
+            if (willMarry) {
+                btnYes.className = 'choice-btn selected-yes';
+                btnNo.className = 'choice-btn';
+                groupAge.classList.remove('disabled-group');
+                groupChildren.classList.remove('disabled-group');
+            } else {
+                btnYes.className = 'choice-btn';
+                btnNo.className = 'choice-btn selected-no';
+                groupAge.classList.add('disabled-group');
+                groupChildren.classList.add('disabled-group');
+                document.getElementById('input-marriage-age').value = '';
+                document.getElementById('input-children').value = '0';
+            }
+        }
+
+        // 학생 제출 처리
         document.getElementById('btn-submit').addEventListener('click', () => {
-            const children = parseFloat(document.getElementById('input-children').value);
-            const marriage = parseFloat(document.getElementById('input-marriage').value);
+            if (selectedWillMarry === null) {
+                alert('결혼 여부를 먼저 선택해 주세요.');
+                return;
+            }
+
+            const marriageAge = selectedWillMarry ? parseFloat(document.getElementById('input-marriage-age').value) : 0;
+            const children = selectedWillMarry ? parseFloat(document.getElementById('input-children').value) : 0;
             const lifespan = parseFloat(document.getElementById('input-lifespan').value);
 
-            if(isNaN(children) || isNaN(marriage) || isNaN(lifespan)) {
-                alert('모든 항목에 숫자를 정확히 입력해 주세요.');
+            if (selectedWillMarry) {
+                if (isNaN(marriageAge) || marriageAge < 18 || marriageAge > 70) {
+                    alert('예상 결혼 연령을 올바르게 입력해 주세요 (18세 ~ 70세).');
+                    return;
+                }
+                if (isNaN(children) || children < 0) {
+                    alert('희망 자녀 수를 올바르게 입력해 주세요.');
+                    return;
+                }
+            }
+
+            if (isNaN(lifespan) || lifespan < 40 || lifespan > 120) {
+                alert('기대 수명을 올바르게 입력해 주세요 (50세 ~ 120세).');
                 return;
             }
 
@@ -609,16 +719,24 @@
             btn.innerText = "제출 중...";
 
             addDoc(surveyCol, {
-                children: children,
-                marriage: marriage,
+                willMarry: selectedWillMarry,
+                marriageAge: selectedWillMarry ? marriageAge : 0,
+                children: selectedWillMarry ? children : 0,
                 lifespan: lifespan,
                 timestamp: new Date()
             }).catch(error => console.error("제출 오류:", error));
 
             setTimeout(() => {
                 document.getElementById('submit-result').innerText = "✅ 성공적으로 제출되었습니다! 상단의 '대시보드' 탭을 확인하세요.";
+                
+                // Reset form
+                selectedWillMarry = null;
+                document.getElementById('btn-marry-yes').className = 'choice-btn';
+                document.getElementById('btn-marry-no').className = 'choice-btn';
+                document.getElementById('group-marriage-age').classList.remove('disabled-group');
+                document.getElementById('group-children').classList.remove('disabled-group');
+                document.getElementById('input-marriage-age').value = '';
                 document.getElementById('input-children').value = '';
-                document.getElementById('input-marriage').value = '';
                 document.getElementById('input-lifespan').value = '';
                 
                 btn.disabled = false;
@@ -692,13 +810,17 @@
             });
         }
 
-        // 인구 분포 계산 로직 (위:100세+ ~ 아래:0~4세)
-        function calculatePyramid(tfr, lifespan) {
-            const r = Math.pow(Math.max(0.05, tfr) / 2.05, 1.0 / 6.0);
+        // 인구 분포 및 피라미드 시뮬레이션 산출 로직
+        function calculatePyramid(tfr, lifespan, avgMarriageAge) {
+            // 결혼 연령이 높을수록 세대 교체 주기가 늘어나는 효과 감안
+            const generationInterval = Math.max(25, avgMarriageAge + 2);
+            const genFactor = 30.0 / generationInterval; 
+
+            const r = Math.pow(Math.max(0.05, tfr) / 2.05, 1.0 / (genFactor * 6.0));
             const weights = [];
 
             for(let i = 0; i < 21; i++) {
-                const k = 20 - i; // 0~4세가 k=0, 100세+가 k=20
+                const k = 20 - i; // 0~4세 k=0, 100세+ k=20
                 const age = k * 5 + 2.5;
                 const baseSize = Math.pow(r, -k);
                 const survival = 1.0 / (1.0 + Math.exp((age - lifespan) / 4.0));
@@ -710,16 +832,24 @@
         }
 
         // 대시보드 화면 업데이트
-        function updateDashboard(avgChildren, avgMarriage, avgLifespan, count) {
-            const tfr = avgChildren * (avgMarriage / 100);
+        function updateDashboard(marriageRate, avgMarriageAge, avgChildren, avgLifespan, count) {
+            // 만혼 감쇄 계수: 결혼 연령이 32세를 초과할 경우 가임 기간 감소 반영 (연간 약 2.5% 감소)
+            let bioFactor = 1.0;
+            if (avgMarriageAge > 32) {
+                bioFactor = Math.max(0.4, 1.0 - (avgMarriageAge - 32) * 0.025);
+            }
+
+            // TFR 계산 = (학급 결혼율 / 100) * (결혼 부부당 평균 자녀) * 가임 보정계수
+            const tfr = (marriageRate / 100) * avgChildren * bioFactor;
 
             document.getElementById('stat-count').innerText = `${count}명`;
+            document.getElementById('stat-marriage').innerText = `${marriageRate.toFixed(1)}%`;
+            document.getElementById('stat-marriage-age').innerText = avgMarriageAge > 0 ? `${avgMarriageAge.toFixed(1)}세` : '-';
             document.getElementById('stat-children').innerText = `${avgChildren.toFixed(2)}명`;
-            document.getElementById('stat-marriage').innerText = `${avgMarriage.toFixed(1)}%`;
             document.getElementById('stat-lifespan').innerText = `${avgLifespan.toFixed(1)}세`;
             document.getElementById('stat-tfr').innerText = tfr.toFixed(2);
 
-            const percentages = calculatePyramid(tfr, avgLifespan);
+            const percentages = calculatePyramid(tfr, avgLifespan, avgMarriageAge);
             const maleData = percentages.map(p => -(p * 0.49).toFixed(2));
             const femaleData = percentages.map(p => (p * 0.51).toFixed(2));
 
@@ -741,42 +871,48 @@
 
         // 실시간 데이터 수신
         onSnapshot(query(surveyCol), (snapshot) => {
-            let totalChildren = 0;
-            let totalMarriage = 0;
-            let totalLifespan = 0;
-            const count = snapshot.size;
+            let totalStudents = snapshot.size;
+            let marryCount = 0;
+            let sumMarriageAge = 0;
+            let sumChildren = 0;
+            let sumLifespan = 0;
 
-            if (count > 0) {
+            if (totalStudents > 0) {
                 snapshot.forEach((doc) => {
                     const data = doc.data();
-                    totalChildren += data.children || 0;
-                    totalMarriage += data.marriage || 0;
-                    totalLifespan += data.lifespan || 0;
+                    sumLifespan += (data.lifespan || 80);
+                    if (data.willMarry) {
+                        marryCount++;
+                        sumMarriageAge += (data.marriageAge || 30);
+                        sumChildren += (data.children || 0);
+                    }
                 });
 
                 liveData = {
-                    children: totalChildren / count,
-                    marriage: totalMarriage / count,
-                    lifespan: totalLifespan / count,
-                    count: count
+                    marriageRate: (marryCount / totalStudents) * 100,
+                    avgMarriageAge: marryCount > 0 ? (sumMarriageAge / marryCount) : 0,
+                    avgChildren: marryCount > 0 ? (sumChildren / marryCount) : 0,
+                    avgLifespan: sumLifespan / totalStudents,
+                    count: totalStudents
                 };
             } else {
-                liveData = { children: 0, marriage: 0, lifespan: 0, count: 0 };
+                liveData = { marriageRate: 0, avgMarriageAge: 0, avgChildren: 0, avgLifespan: 0, count: 0 };
             }
 
             if(!isManualMode) {
-                updateDashboard(liveData.children, liveData.marriage, liveData.lifespan, liveData.count);
+                updateDashboard(liveData.marriageRate, liveData.avgMarriageAge, liveData.avgChildren, liveData.avgLifespan, liveData.count);
             }
         });
 
-        // 수동 시뮬레이션 버튼 동작
+        // 수동 시뮬레이션 적용
         window.applyManualSimulation = function() {
+            const maRate = parseFloat(document.getElementById('manual-marriage').value);
+            const maAge = parseFloat(document.getElementById('manual-marriage-age').value);
             const ch = parseFloat(document.getElementById('manual-children').value);
-            const ma = parseFloat(document.getElementById('manual-marriage').value);
             const li = parseFloat(document.getElementById('manual-lifespan').value);
 
-            if(isNaN(ch) || isNaN(ma) || isNaN(li)) {
-                alert('수동 설정값을 모두 입력해주세요.');
+            if(isNaN(maRate) || isNaN(maAge) || isNaN(ch) || isNaN(li)) {
+                alert('수동 설정값을 모두 정확히 입력해주세요.');
                 return;
             }
 
@@ -785,7 +921,7 @@
             badge.className = "mode-badge mode-manual";
             badge.innerText = "🛠️ 수동 시뮬레이션 적용 중 (선생님 지정 값)";
 
-            updateDashboard(ch, ma, li, liveData.count);
+            updateDashboard(maRate, maAge, ch, li, liveData.count);
         }
 
         // 학생 데이터 복구
@@ -795,7 +931,7 @@
             badge.className = "mode-badge mode-live";
             badge.innerText = "🟢 실시간 학생 데이터 연동 중";
 
-            updateDashboard(liveData.children, liveData.marriage, liveData.lifespan, liveData.count);
+            updateDashboard(liveData.marriageRate, liveData.avgMarriageAge, liveData.avgChildren, liveData.avgLifespan, liveData.count);
         }
 
         // 시대별 라디오 버튼 오버레이
@@ -807,11 +943,11 @@
             if(isManualMode) {
                 applyManualSimulation();
             } else {
-                updateDashboard(liveData.children, liveData.marriage, liveData.lifespan, liveData.count);
+                updateDashboard(liveData.marriageRate, liveData.avgMarriageAge, liveData.avgChildren, liveData.avgLifespan, liveData.count);
             }
         }
 
-        // 초기화 기능
+        // 전체 초기화
         window.clearData = async function() {
             if(confirm("모든 학생의 응답 데이터를 삭제하시겠습니까? (복구 불가)")) {
                 try {

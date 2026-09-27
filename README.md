@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>실시간 미래 인구 피라미드 (학급 연동)</title>
-    <!-- Chart.js 라이브러리 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --primary: #4f46e5; --bg: #f8fafc; --text: #1e293b; --card: #ffffff; }
         body { font-family: 'Pretendard', 'Malgun Gothic', sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; }
+        
         .header { background: linear-gradient(135deg, #312e81, #4f46e5); color: white; padding: 25px 20px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .header h1 { margin: 0 0 15px 0; font-size: 24px; }
-        
         .nav-buttons { display: flex; justify-content: center; gap: 10px; }
         .nav-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
         .nav-btn:hover { background: rgba(255,255,255,0.25); }
@@ -22,10 +21,28 @@
         .view-section.active { display: block; animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
-        .stat-card { background: #f1f5f9; padding: 20px 15px; border-radius: 12px; text-align: center; border: 1px solid #e2e8f0; }
-        .stat-value { font-size: 26px; font-weight: 900; color: var(--primary); margin-top: 8px; }
+        .mode-live { background: #d1fae5; color: #059669; padding: 12px; text-align: center; font-weight: bold; border-radius: 8px; margin-bottom: 20px; font-size: 16px; border: 1px solid #34d399; }
+        .mode-manual { background: #fef3c7; color: #d97706; padding: 12px; text-align: center; font-weight: bold; border-radius: 8px; margin-bottom: 20px; font-size: 16px; border: 1px solid #fbbf24; }
         
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .stat-card { background: #f1f5f9; padding: 20px 15px; border-radius: 12px; text-align: center; border: 1px solid #e2e8f0; transition: all 0.3s; }
+        .stat-value { font-size: 26px; font-weight: 900; color: var(--primary); margin-top: 8px; }
+        .stat-card.manual-override { background: #fff7ed; border-color: #fdba74; }
+        .stat-card.manual-override .stat-value { color: #ea580c; }
+        
+        .manual-controls-panel { background: #fff7ed; border: 2px dashed #fdba74; padding: 20px; border-radius: 12px; margin-bottom: 25px; }
+        .manual-controls-panel h3 { margin: 0 0 15px 0; color: #c2410c; font-size: 18px; text-align: center; }
+        .manual-inputs { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-bottom: 15px; }
+        .manual-inputs > div { display: flex; flex-direction: column; gap: 5px; width: 140px; }
+        .manual-inputs label { font-size: 13px; font-weight: bold; color: #9a3412; }
+        .manual-inputs input { padding: 10px; border: 1px solid #fdba74; border-radius: 6px; text-align: center; font-weight: bold; outline: none; }
+        .manual-inputs input:focus { border-color: #ea580c; box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2); }
+        .manual-actions { display: flex; justify-content: center; gap: 10px; }
+        .btn-apply { background: #ea580c; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-apply:hover { background: #c2410c; }
+        .btn-reset { background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-reset:hover { background: #059669; }
+
         .overlay-controls { display: flex; align-items: center; justify-content: center; gap: 15px; margin: 20px 0; padding: 15px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; flex-wrap: wrap; }
         .overlay-controls span { font-weight: bold; color: #475569; }
         .radio-group { display: flex; gap: 10px; }
@@ -44,7 +61,7 @@
         .submit-btn:hover { background: #4338ca; }
         .submit-btn:disabled { background: #94a3b8; cursor: not-allowed; }
         
-        #status-msg { text-align: center; margin-bottom: 20px; font-weight: bold; color: #059669; padding: 10px; background: #d1fae5; border-radius: 8px; }
+        #submit-result { text-align: center; margin-top: 20px; font-weight: bold; color: #059669; font-size: 18px; }
     </style>
 </head>
 <body>
@@ -58,13 +75,12 @@
     </div>
 
     <div class="container">
-        <!-- 1. 교사 대시보드 뷰 -->
         <div id="view-dashboard" class="view-section active">
-            <div id="status-msg">클라우드 데이터베이스 연결 중...</div>
+            <div id="mode-badge" class="mode-live">🟢 실시간 학생 데이터 연동 중 (Firebase)</div>
             
-            <div class="stats-grid">
+            <div class="stats-grid" id="stats-container">
                 <div class="stat-card">
-                    <div style="font-size:14px; color:#64748b;">참여 학생 수</div>
+                    <div style="font-size:14px; color:#64748b;">참여 학생 수 (시뮬레이션)</div>
                     <div class="stat-value" id="stat-count">0명</div>
                 </div>
                 <div class="stat-card">
@@ -79,13 +95,34 @@
                     <div style="font-size:14px; color:#64748b;">평균 기대 수명</div>
                     <div class="stat-value" id="stat-lifespan">0세</div>
                 </div>
-                <div class="stat-card" style="background:#e0e7ff; border-color:#c7d2fe;">
-                    <div style="font-size:14px; font-weight:bold; color:#4338ca;">추정 합계출산율(TFR)</div>
+                <div class="stat-card" style="background:#e0e7ff; border-color:#c7d2fe;" id="tfr-card">
+                    <div style="font-size:14px; font-weight:bold; color:#4338ca;" id="tfr-label">추정 합계출산율(TFR)</div>
                     <div class="stat-value" id="stat-tfr" style="color:#4338ca;">0.00</div>
                 </div>
             </div>
 
-            <!-- 오버레이 컨트롤 (비교 연도 선택) -->
+            <div class="manual-controls-panel">
+                <h3>🛠️ 수동 시뮬레이션 설정 (선생님 직접 입력)</h3>
+                <div class="manual-inputs">
+                    <div>
+                        <label>평균 희망 자녀 수 (명)</label>
+                        <input type="number" id="man-child" step="0.1" value="1.5" min="0">
+                    </div>
+                    <div>
+                        <label>결혼 의향률 (%)</label>
+                        <input type="number" id="man-marry" step="1" value="80" min="0" max="100">
+                    </div>
+                    <div>
+                        <label>평균 기대 수명 (세)</label>
+                        <input type="number" id="man-life" step="1" value="85" min="50" max="120">
+                    </div>
+                </div>
+                <div class="manual-actions">
+                    <button class="btn-apply" onclick="applyManualSimulation()">수동 시뮬레이션 적용</button>
+                    <button class="btn-reset" onclick="returnToLiveData()">학생 실시간 데이터로 복귀</button>
+                </div>
+            </div>
+
             <div class="overlay-controls">
                 <span>🔍 실제 시대별 인구구조 비교:</span>
                 <div class="radio-group">
@@ -110,12 +147,11 @@
             
             <div style="text-align: right; margin-top: 20px;">
                 <button onclick="clearData()" style="background:#ef4444; color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold; transition: background 0.2s;">
-                    <i class="fa-solid fa-trash"></i> ⚠️ 전체 응답 초기화 (새 수업 시작)
+                    <i class="fa-solid fa-trash"></i> ⚠️ 전체 학생 응답 초기화
                 </button>
             </div>
         </div>
 
-        <!-- 2. 학생 제출 뷰 -->
         <div id="view-submit" class="view-section">
             <h2 style="text-align: center; margin-bottom: 25px; color: var(--primary);">나의 미래 계획 입력하기</h2>
             <div class="form-group">
@@ -131,7 +167,7 @@
                 <input type="number" id="input-lifespan" min="50" max="120" placeholder="예: 85, 90, 100">
             </div>
             <button class="submit-btn" id="btn-submit">내 응답 제출하여 피라미드 만들기</button>
-            <div id="submit-result" style="text-align:center; margin-top:20px; font-weight:bold; color:#059669; font-size:18px;"></div>
+            <div id="submit-result"></div>
         </div>
     </div>
 
@@ -139,7 +175,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // 선생님의 Firebase 고유 설정값
         const firebaseConfig = {
             apiKey: "AIzaSyDhBOpQWkZ92Q09PZy8WxprnVROTb_Pd_U",
             authDomain: "pyramid-89a8c.firebaseapp.com",
@@ -154,16 +189,14 @@
         const db = getFirestore(app);
         const surveyCol = collection(db, "class_surveys");
 
-        // [핵심 변경 1] 연령대 레이블을 100세 이상부터 0~4세 순으로 '직접' 뒤집어서 생성
-        // index 0: 100세 이상 ~ index 20: 0~4세
+        // 연령대 레이블: 100세 이상부터 0~4세 순으로 직접 구성
         let ageLabels = [];
         for (let i = 20; i >= 0; i--) {
             if (i === 20) ageLabels.push('100세 이상');
             else ageLabels.push(`${i*5}~${i*5+4}세`);
         }
 
-        // 과거/미래 비교용 데이터 (0~4세부터 100세 이상 순서로 작성 후 역순 정렬)
-        // 남성은 -, 여성은 + 비율
+        // 시대별 비교용 실제 데이터 (0~4세부터 100세이상 역순 정렬됨)
         const historicalData = {
             '1960': {
                 male: [-8.8, -7.2, -6.1, -5.2, -4.5, -3.8, -3.2, -2.5, -2.0, -1.6, -1.2, -0.9, -0.6, -0.4, -0.2, -0.1, -0.05, -0.02, -0.01, -0.0, -0.0].reverse(),
@@ -181,20 +214,21 @@
 
         let pyramidChart = null;
         let currentOverlay = 'none';
-        let currentMaleData = Array(21).fill(0);
-        let currentFemaleData = Array(21).fill(0);
+        
+        // 상태 관리 (학생 데이터 vs 수동 데이터)
+        let mode = 'live'; // 'live' or 'manual'
+        let liveStats = { count: 0, children: 0, marriage: 0, lifespan: 0, tfr: 0 };
+        let manualStats = { children: 0, marriage: 0, lifespan: 0, tfr: 0 };
 
         function initChart() {
             const ctx = document.getElementById('pyramidChart').getContext('2d');
             pyramidChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ageLabels, // 100세 이상 -> 0~4세 순서
+                    labels: ageLabels,
                     datasets: [
-                        // 학생 실시간 데이터 (막대)
-                        { label: '남성 (우리반)', data: currentMaleData, backgroundColor: 'rgba(56, 189, 248, 0.85)', stack: 'Stack 0', order: 2 },
-                        { label: '여성 (우리반)', data: currentFemaleData, backgroundColor: 'rgba(251, 113, 133, 0.85)', stack: 'Stack 0', order: 2 },
-                        // 시대별 비교 오버레이 데이터 (선) - 초기에는 빈 배열로 숨김
+                        { label: '남성 (시뮬레이션)', data: Array(21).fill(0), backgroundColor: 'rgba(56, 189, 248, 0.85)', stack: 'Stack 0', order: 2 },
+                        { label: '여성 (시뮬레이션)', data: Array(21).fill(0), backgroundColor: 'rgba(251, 113, 133, 0.85)', stack: 'Stack 0', order: 2 },
                         { label: '남성 (비교)', data: [], type: 'line', borderColor: '#475569', borderWidth: 2, borderDash: [5, 5], fill: false, pointRadius: 0, order: 1 },
                         { label: '여성 (비교)', data: [], type: 'line', borderColor: '#475569', borderWidth: 2, borderDash: [5, 5], fill: false, pointRadius: 0, order: 1 }
                     ]
@@ -205,25 +239,16 @@
                     maintainAspectRatio: false,
                     scales: {
                         x: {
-                            stacked: false, // 선과 막대를 겹치게 하기 위해 x축 스택 해제
+                            stacked: false, 
                             ticks: { callback: val => Math.abs(val).toFixed(1) + '%' },
                             title: { display: true, text: '전체 인구 대비 비율 (%)', font: {weight:'bold'} },
                             min: -15, max: 15
                         },
-                        y: { 
-                            stacked: true // 막대그래프를 양옆으로 밀어내기 위해 y축만 스택
-                            /* [핵심 변경 2] 배열 자체를 역순으로 짰으므로 reverse: true 옵션 제거! */
-                        }
+                        y: { stacked: true }
                     },
                     plugins: {
-                        legend: {
-                            labels: { filter: function(item) { return item.text.includes('(우리반)'); } }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: ctx => `${ctx.dataset.label}: ${Math.abs(ctx.raw).toFixed(2)}%`
-                            }
-                        }
+                        legend: { labels: { filter: function(item) { return item.text.includes('(시뮬레이션)'); } } },
+                        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${Math.abs(ctx.raw).toFixed(2)}%` } }
                     },
                     animation: { duration: 800 }
                 }
@@ -231,29 +256,76 @@
         }
 
         function calculatePyramid(tfr, lifespan) {
-            // 0~4세부터 계산
             const ages = Array.from({length: 21}, (_, i) => i * 5 + 2.5);
             const r = Math.pow(Math.max(0.1, tfr) / 2.05, 1.0 / 6.0);
             const baseSize = ages.map((_, i) => Math.pow(r, -i));
             const survival = ages.map(age => 1.0 / (1.0 + Math.exp((age - lifespan) / 4.0)));
-            
             const weights = baseSize.map((base, i) => base * survival[i]);
             const total = weights.reduce((a, b) => a + b, 0);
-            
             let percentages = weights.map(w => (w / total) * 100.0);
-            
-            // [핵심 변경 3] 0~4세부터 계산된 결과를 100세이상~0세 순서에 맞게 역순으로 반환
             return percentages.reverse();
+        }
+
+        function renderDashboard() {
+            const stats = mode === 'live' ? liveStats : manualStats;
+            
+            // 통계 UI 업데이트
+            document.getElementById('stat-count').innerText = mode === 'live' ? `${stats.count}명` : `수동 모드`;
+            document.getElementById('stat-children').innerText = `${stats.children.toFixed(2)}명`;
+            document.getElementById('stat-marriage').innerText = `${stats.marriage.toFixed(1)}%`;
+            document.getElementById('stat-lifespan').innerText = `${stats.lifespan.toFixed(1)}세`;
+            document.getElementById('stat-tfr').innerText = stats.tfr.toFixed(2);
+
+            // UI 스타일 분기 처리
+            const cards = document.querySelectorAll('.stat-card');
+            const badge = document.getElementById('mode-badge');
+            
+            if (mode === 'manual') {
+                cards.forEach(card => card.classList.add('manual-override'));
+                document.getElementById('tfr-card').style.backgroundColor = '#ffedd5';
+                document.getElementById('tfr-card').style.borderColor = '#fdba74';
+                document.getElementById('tfr-label').style.color = '#c2410c';
+                document.getElementById('stat-tfr').style.color = '#ea580c';
+                
+                badge.className = 'mode-manual';
+                badge.innerText = '🟠 수동 시뮬레이션 모드 (선생님 입력 값 적용 중)';
+            } else {
+                cards.forEach(card => card.classList.remove('manual-override'));
+                document.getElementById('tfr-card').style.backgroundColor = '#e0e7ff';
+                document.getElementById('tfr-card').style.borderColor = '#c7d2fe';
+                document.getElementById('tfr-label').style.color = '#4338ca';
+                document.getElementById('stat-tfr').style.color = '#4338ca';
+                
+                badge.className = 'mode-live';
+                badge.innerText = '🟢 실시간 학생 데이터 연동 중';
+            }
+
+            // 피라미드 차트 계산 및 업데이트
+            if (stats.count > 0 || mode === 'manual') {
+                const percentages = calculatePyramid(stats.tfr, stats.lifespan);
+                const maleData = percentages.map(p => -(p * 0.49).toFixed(2));
+                const femaleData = percentages.map(p => (p * 0.51).toFixed(2));
+                
+                if(pyramidChart) {
+                    pyramidChart.data.datasets[0].data = maleData;
+                    pyramidChart.data.datasets[1].data = femaleData;
+                    pyramidChart.update();
+                }
+            } else {
+                // 데이터가 없을 때
+                if(pyramidChart) {
+                    pyramidChart.data.datasets[0].data = Array(21).fill(0);
+                    pyramidChart.data.datasets[1].data = Array(21).fill(0);
+                    pyramidChart.update();
+                }
+            }
         }
 
         window.changeOverlay = function(year) {
             currentOverlay = year;
-            
-            // 라디오 버튼 UI 업데이트
             document.querySelectorAll('.radio-label').forEach(el => el.classList.remove('selected'));
             document.getElementById('lbl-' + year).classList.add('selected');
 
-            // 차트 데이터 업데이트
             if (year === 'none') {
                 pyramidChart.data.datasets[2].data = [];
                 pyramidChart.data.datasets[3].data = [];
@@ -264,14 +336,30 @@
             pyramidChart.update();
         }
 
+        window.applyManualSimulation = function() {
+            const c = parseFloat(document.getElementById('man-child').value) || 0;
+            const m = parseFloat(document.getElementById('man-marry').value) || 0;
+            const l = parseFloat(document.getElementById('man-life').value) || 0;
+            
+            manualStats = {
+                children: c,
+                marriage: m,
+                lifespan: l,
+                tfr: c * (m / 100)
+            };
+            
+            mode = 'manual';
+            renderDashboard();
+        }
+
+        window.returnToLiveData = function() {
+            mode = 'live';
+            renderDashboard();
+        }
+
         onSnapshot(query(surveyCol), (snapshot) => {
             let totalChildren = 0; let totalMarriage = 0; let totalLifespan = 0;
             const count = snapshot.size;
-
-            const statusEl = document.getElementById('status-msg');
-            statusEl.innerText = "🟢 실시간 연결 중 (데이터베이스 정상)";
-            statusEl.style.color = "#059669";
-            statusEl.style.backgroundColor = "#d1fae5";
 
             if (count > 0) {
                 snapshot.forEach((doc) => {
@@ -281,41 +369,21 @@
                     totalLifespan += data.lifespan || 0;
                 });
 
-                const avgChildren = totalChildren / count;
-                const avgMarriage = totalMarriage / count;
-                const avgLifespan = totalLifespan / count;
-                const tfr = avgChildren * (avgMarriage / 100);
-
-                document.getElementById('stat-count').innerText = `${count}명`;
-                document.getElementById('stat-children').innerText = `${avgChildren.toFixed(2)}명`;
-                document.getElementById('stat-marriage').innerText = `${avgMarriage.toFixed(1)}%`;
-                document.getElementById('stat-lifespan').innerText = `${avgLifespan.toFixed(1)}세`;
-                document.getElementById('stat-tfr').innerText = tfr.toFixed(2);
-
-                const percentages = calculatePyramid(tfr, avgLifespan);
-                currentMaleData = percentages.map(p => -(p * 0.49).toFixed(2));
-                currentFemaleData = percentages.map(p => (p * 0.51).toFixed(2));
-
+                liveStats.count = count;
+                liveStats.children = totalChildren / count;
+                liveStats.marriage = totalMarriage / count;
+                liveStats.lifespan = totalLifespan / count;
+                liveStats.tfr = liveStats.children * (liveStats.marriage / 100);
             } else {
-                // 데이터 없음
-                document.getElementById('stat-count').innerText = `0명`;
-                document.getElementById('stat-children').innerText = `0.00명`;
-                document.getElementById('stat-marriage').innerText = `0%`;
-                document.getElementById('stat-lifespan').innerText = `0세`;
-                document.getElementById('stat-tfr').innerText = `0.00`;
-                
-                currentMaleData = Array(21).fill(0);
-                currentFemaleData = Array(21).fill(0);
+                liveStats = { count: 0, children: 0, marriage: 0, lifespan: 0, tfr: 0 };
             }
 
-            if(pyramidChart) {
-                pyramidChart.data.datasets[0].data = currentMaleData;
-                pyramidChart.data.datasets[1].data = currentFemaleData;
-                pyramidChart.update();
+            // 라이브 모드일 때만 화면 갱신 수행
+            if (mode === 'live') {
+                renderDashboard();
             }
         });
 
-        // 학생 제출 처리
         document.getElementById('btn-submit').addEventListener('click', () => {
             const children = parseFloat(document.getElementById('input-children').value);
             const marriage = parseFloat(document.getElementById('input-marriage').value);
@@ -331,7 +399,6 @@
             addDoc(surveyCol, { children, marriage, lifespan, timestamp: new Date() })
                 .catch(error => console.error("제출 오류:", error));
 
-            // 빠른 화면 응답
             setTimeout(() => {
                 document.getElementById('submit-result').innerText = "✅ 성공적으로 제출되었습니다! 교사 대시보드 화면을 확인하세요.";
                 document.getElementById('input-children').value = '';
@@ -343,7 +410,6 @@
             }, 300);
         });
 
-        // 탭 전환 
         window.switchView = function(view, btnElement) {
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
@@ -351,7 +417,6 @@
             if(btnElement) btnElement.classList.add('active');
         }
 
-        // 초기화
         window.clearData = async function() {
             if(confirm("모든 학생의 응답 데이터를 영구적으로 삭제하시겠습니까? (복구 불가)")) {
                 try {
